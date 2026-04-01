@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>潮汕美食排行榜TOP20</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: system-ui, sans-serif;
+        }
+        body {
+            background-color: #f8f5f0;
+            padding: 1rem;
+        }
+        h1 {
+            text-align: center;
+            color: #8B4513;
+            margin: 1.5rem 0;
+        }
+        .food-item {
+            background: white;
+            border-radius: 12px;
+            margin-bottom: 0.8rem;
+            overflow: hidden;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .food-header {
+            padding: 1rem 1.2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background-color: #fdf2e9;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        .food-header::after {
+            content: '▼';
+            font-size: 0.8rem;
+            color: #8B4513;
+            transition: transform 0.3s ease;
+        }
+        .food-header.active::after {
+            transform: rotate(180deg);
+        }
+        .food-content {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.5s ease, padding 0.3s ease;
+            padding: 0 1.2rem;
+        }
+        .food-content.active {
+            max-height: 800px;
+            padding: 1.2rem;
+        }
+        .food-img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 8px;
+            margin-bottom: 0.8rem;
+        }
+        .food-desc {
+            color: #333;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+<body>
+    <h1>潮汕美食排行榜TOP20</h1>
+    <!-- 1-20号美食条目，按口碑&代表性排序 -->
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">1. 潮汕牛肉火锅</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/1067/800/450" alt="潮汕牛肉火锅" class="food-img">
+            <p class="food-desc">潮汕美食的标杆，讲究现宰现切，牛肉从屠宰到上桌不超4小时。分吊龙、五花趾、胸口油等多个部位，清汤锅底只加白萝卜、玉米提鲜；蘸沙茶酱或普宁豆酱，涮煮秒数精准，突出牛肉本味的鲜甜弹嫩。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">2. 潮汕卤鹅（澄海狮头鹅）</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/1080/800/450" alt="潮汕卤鹅" class="food-img">
+            <p class="food-desc">国家级非遗，选用澄海本地狮头鹅，经“三吊三浸”老卤工艺卤制。卤香浓郁不腻，鹅肉紧实，鹅肝绵密如慕斯，鹅掌弹脆；搭配蒜泥醋解腻，是潮汕宴席“硬通货”。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">3. 手打牛肉丸/牛筋丸</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/312/800/450" alt="手打牛肉丸" class="food-img">
+            <p class="food-desc">潮州百年名小吃，用黄牛后腿肉手工捶打40分钟以上，去筋起胶。牛肉丸弹嫩多汁，牛筋丸因加牛筋碎更有嚼劲，可煮汤、涮火锅，甚至能弹起乒乓球；配粿条汤或沙茶酱是经典吃法。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">4. 蚝烙（蚝煎）</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/488/800/450" alt="蚝烙" class="food-img">
+            <p class="food-desc">新鲜珠蚝+红薯粉浆+鸭蛋，以猪油煎至金黄焦脆，边缘微酥、内里软嫩多汁。撒胡椒粉、蘸鱼露食用，海味浓郁，是潮汕街头最经典的小吃之一，也是宴席常客。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">5. 潮汕生腌（潮汕毒药）</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/493/800/450" alt="潮汕生腌" class="food-img">
+            <p class="food-desc">活海鲜（蟹、虾、血蛤）用鱼露、蒜蓉、辣椒、芫荽等腌渍数小时。口感滑嫩如啫喱，鲜甜微辣，越吃越上瘾，故称“潮汕毒药”。通常配白粥，是夏夜潮汕人的解馋美味（肠胃敏感者慎食）。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">6. 潮汕肠粉</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/292/800/450" alt="潮汕肠粉" class="food-img">
+            <p class="food-desc">区别于广式肠粉，潮汕肠粉皮更薄更透，馅料丰富（鸡蛋、肉末、鲜虾、生蚝、豆芽），淋上特制卤汁或花生酱+酱油混合酱汁。口感软糯，酱香浓郁，是潮汕早餐的绝对主角。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">7. 粿汁</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/431/800/450" alt="粿汁" class="food-img">
+            <p class="food-desc">唐代传承的潮汕传统小吃，米浆在平底锅煎成薄粿，切块后放入沸卤汤煮软。搭配卤大肠、卤蛋、炸腐竹、卤豆干，卤香醇厚，粿块软糯，是潮汕人宵夜、早餐的热门选择。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">8. 蚝烙（珠蚝版）</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/497/800/450" alt="珠蚝蚝烙" class="food-img">
+            <p class="food-desc">与大蚝版本不同，用极小的新鲜珠蚝，配番薯粉、鸭蛋、葱花，猪油猛火快煎。外酥里润，蚝香更密集，入口满是海味，是汕头老市区街头的地道风味，蘸鱼露或胡椒粉风味更佳。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">9. 潮汕生腌虾/腌蟹</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/489/800/450" alt="生腌虾蟹" class="food-img">
+            <p class="food-desc">“潮汕毒药”代表，活虾、膏蟹用蒜蓉、辣椒、鱼露、香菜、白酒腌制入味，冷藏数小时。蟹肉如啫喱，虾肉鲜甜弹牙，酸辣开胃，配白粥解腻，是沿海潮汕人的极致鲜食体验。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">10. 潮汕砂锅粥（虾蟹粥）</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/291/800/450" alt="潮汕砂锅粥" class="food-img">
+            <p class="food-desc">潮汕宵夜顶流，用东北大米+海鲜（鲜虾、膏蟹、干贝）慢熬，米粒开花但不烂，粥底绵密浓稠，鲜味融入每一粒米。可加胡椒粉、芹菜珠提香，暖身又鲜甜。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">11. 普宁豆干</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/306/800/450" alt="普宁豆干" class="food-img">
+            <p class="food-desc">普宁传统名吃，用本地黄豆、山泉水制成豆腐，炸至外皮金黄酥脆，内里嫩滑如布丁。蘸韭菜盐水或普宁豆酱，豆香浓郁，外酥里嫩，是潮汕乡村宴席必备。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">12. 达濠鱼丸</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/429/800/450" alt="达濠鱼丸" class="food-img">
+            <p class="food-desc">汕头达濠特产，用新鲜海鱼（鳗鱼、马鲛鱼）手工捶打，去骨起胶制成。鱼丸洁白弹滑，鲜而不腥，久煮不烂；可煮汤、做鱼丸粿条、涮火锅，是潮汕鱼糜制品的代表。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">13. 鸭母捻</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/225/800/450" alt="鸭母捻" class="food-img">
+            <p class="food-desc">潮汕经典甜品汤圆，因形似母鸭浮水得名。外皮软糯，内馅有芝麻、豆沙、芋泥多种；常配银耳、莲子、百合、红枣糖水，清甜不腻，是节庆、下午茶的传统甜点。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">14. 猪肠胀糯米</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/428/800/450" alt="猪肠胀糯米" class="food-img">
+            <p class="food-desc">潮汕特色年味小吃，猪大肠洗净后填入糯米、花生、虾米、香菇、五花肉，蒸熟后切片，淋甜酱油或橘油。口感软糯咸香，油脂香与米香交融，肥而不腻。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">15. 潮汕鱼饭</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/430/800/450" alt="潮汕鱼饭" class="food-img">
+            <p class="food-desc">渔民智慧结晶，并非米饭，而是新鲜海鱼（巴浪鱼、大眼鸡等）用盐水煮熟，冷却后鱼肉紧实如“饭团”。蘸普宁豆酱吃，保留海鱼本鲜，是潮汕人配白粥的灵魂小菜。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">16. 隆江猪脚饭</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/1069/800/450" alt="隆江猪脚饭" class="food-img">
+            <p class="food-desc">揭阳惠来隆江镇招牌，猪脚经老卤慢炖至软糯脱骨，皮Q肉嫩，卤香浓郁。搭配米饭和酸菜/青菜，肥而不腻，是潮汕地区性价比极高的快餐，风靡广东乃至全国。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">17. 糖葱薄饼</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/314/800/450" alt="糖葱薄饼" class="food-img">
+            <p class="food-desc">潮州传统甜品小吃，薄如蝉翼的饼皮，裹上多孔的麦芽糖“糖葱”，加花生芝麻碎、香菜。口感层次丰富，饼皮软韧，糖葱清甜松脆，是潮汕街头的怀旧美味。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">18. 无米粿</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/324/800/450" alt="无米粿" class="food-img">
+            <p class="food-desc">名字无米，实则用番薯粉做皮，包韭菜、包菜或虾米馅料，煎至两面金黄。外皮微脆，内馅鲜香多汁，潮汕话“无米”是指不用大米做皮，是经典的潮汕粿品小吃。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">19. 甘草水果</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/268/800/450" alt="甘草水果" class="food-img">
+            <p class="food-desc">潮汕解腻神器，新鲜时令水果（芒果、杨桃、油甘、李子）切块，淋上秘制甘草汁+梅汁，撒南姜末或芝麻。酸甜带甘，清爽开胃，是吃了油腻潮汕菜后绝佳的收尾。</p>
+        </div>
+    </div>
+
+    <div class="food-item">
+        <div class="food-header" onclick="toggleContent(this)">20. 乒乓粿</div>
+        <div class="food-content">
+            <img src="https://picsum.photos/id/293/800/450" alt="乒乓粿" class="food-img">
+            <p class="food-desc">潮州传统名点，广东省非遗。外皮用糯米粉制成，软糯有弹性；内馅有甜（花生、芝麻、糖）咸（虾米、菜脯）两种，可蒸食软糯香甜，也可油煎外脆里嫩，是潮汕节庆祭祀的传统糕点。</p>
+        </div>
+    </div>
+
+    <script>
+        function toggleContent(header) {
+            const content=header.nextElementSibling;
+            header.classList.toggle('active');
+            content.classList.toggle('active');
+        }
+    </script>
+</body>
+</html>
