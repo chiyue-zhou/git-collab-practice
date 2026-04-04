@@ -1,0 +1,909 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>象棋AI - DeepSeek对战</title>
+    <style>
+        * {
+            user-select: none;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #2c5f2d, #1a3a1a);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+        
+        .game-container {
+            background: #deb887;
+            padding: 20px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        }
+        
+        canvas {
+            display: block;
+            margin: 0 auto;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+            cursor: pointer;
+        }
+        
+        .info-panel {
+            margin-top: 20px;
+            background: #f5e6d3;
+            padding: 15px 25px;
+            border-radius: 15px;
+            text-align: center;
+        }
+        
+        .step-counter {
+            font-size: 24px;
+            font-weight: bold;
+            color: #d43f1f;
+        }
+        
+        .step-counter span {
+            font-size: 36px;
+            color: #c0392b;
+        }
+        
+        .status {
+            font-size: 18px;
+            margin: 10px 0;
+            padding: 8px;
+            border-radius: 8px;
+            background: #fff;
+        }
+        
+        button {
+            background: #4a6b3c;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 18px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 10px;
+            transition: all 0.3s;
+        }
+        
+        button:hover {
+            background: #2c5f2d;
+            transform: scale(1.05);
+        }
+        
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #c0392b;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+<div>
+    <div class="game-container">
+        <canvas id="chessboard" width="360" height="420"></canvas>
+        <div class="info-panel">
+            <div class="step-counter">
+                🤖 AI已走步数: <span id="stepCount">0</span> / 50
+            </div>
+            <div class="status" id="status">
+                🎯 游戏开始，红方先走
+            </div>
+            <button onclick="resetGame()">🔄 新的一局</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    // ==================== DeepSeek配置 ====================
+    // ⚠️ 重要：请先去 platform.deepseek.com 生成新的Key，替换下面这行！
+    const DEEPSEEK_CONFIG = {
+        apiKey: "",  // ← 把这里换成你新生成的Key！
+        url: "https://api.deepseek.com/v1/chat/completions",
+        model: "deepseek-chat"
+    };
+    
+    // ==================== 游戏状态 ====================
+    let board = [];
+    let currentTurn = 'r'; // 'r'红方(玩家)先走，'b'黑方(AI)
+    let aiStepCount = 0;
+    let gameOver = false;
+    let winner = null;
+    let selectedRow = null, selectedCol = null;
+    let canvas = document.getElementById('chessboard');
+    let ctx = canvas.getContext('2d');
+    
+    // 棋子编码: r车 r马 r象 r士 r将 r炮 r兵, b车 b马...
+    const pieces = {
+        'r车': '車', 'r马': '馬', 'r象': '象', 'r士': '士', 'r将': '帥', 'r炮': '炮', 'r兵': '兵',
+        'b车': '車', 'b马': '馬', 'b象': '象', 'b士': '士', 'b将': '將', 'b炮': '炮', 'b卒': '卒'
+    };
+    
+    // ==================== 初始化棋盘 ====================
+    function initBoard() {
+        board = [
+            ['b车', 'b马', 'b象', 'b士', 'b将', 'b士', 'b象', 'b马', 'b车'],
+            ['', '', '', '', '', '', '', '', ''],
+            ['', 'b炮', '', '', '', '', '', 'b炮', ''],
+            ['b卒', '', 'b卒', '', 'b卒', '', 'b卒', '', 'b卒'],
+            ['', '', '', '', '', '', '', '', ''],
+            ['', '', '', '', '', '', '', '', ''],
+            ['r兵', '', 'r兵', '', 'r兵', '', 'r兵', '', 'r兵'],
+            ['', 'r炮', '', '', '', '', '', 'r炮', ''],
+            ['', '', '', '', '', '', '', '', ''],
+            ['r车', 'r马', 'r象', 'r士', 'r将', 'r士', 'r象', 'r马', 'r车']
+        ];
+    }
+    
+    // ==================== 绘制棋盘 ====================
+    function drawBoard() {
+        // 添加边距，让棋子对准网格线交叉点
+        const padding = 24;
+        const boardWidth = canvas.width - 2 * padding;
+        const boardHeight = canvas.height - 2 * padding;
+        const cellW = boardWidth / 8;  // 9个点，8个间隔
+        const cellH = boardHeight / 9; // 10个点，9个间隔
+        
+        // 绘制背景
+        ctx.fillStyle = '#f0d9b5';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        
+        // 绘制网格线
+        ctx.beginPath();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        
+        // 横线（10条）
+        for (let i = 0; i < 10; i++) {
+            const y = padding + i * cellH;
+            ctx.moveTo(padding, y);
+            ctx.lineTo(padding + 8 * cellW, y);
+        }
+        
+        // 竖线（9条）- 中间断开画楚河汉界
+        for (let i = 0; i < 9; i++) {
+            const x = padding + i * cellW;
+            // 上方竖线（0-4行）
+            ctx.moveTo(x, padding);
+            ctx.lineTo(x, padding + 4 * cellH);
+            // 下方竖线（5-9行）
+            ctx.moveTo(x, padding + 5 * cellH);
+            ctx.lineTo(x, padding + 9 * cellH);
+        }
+        ctx.stroke();
+        
+        // 绘制楚河汉界
+        ctx.font = 'bold 16px "KaiTi", "SimSun", serif';
+        ctx.fillStyle = '#8b5a2b';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText('楚  河', padding + 2 * cellW, padding + 4.5 * cellH);
+        ctx.fillText('汉  界', padding + 6 * cellW, padding + 4.5 * cellH);
+        
+        // 绘制九宫斜线
+        ctx.beginPath();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.5;
+        // 上方九宫
+        ctx.moveTo(padding + 3 * cellW, padding);
+        ctx.lineTo(padding + 5 * cellW, padding + 2 * cellH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(padding + 5 * cellW, padding);
+        ctx.lineTo(padding + 3 * cellW, padding + 2 * cellH);
+        ctx.stroke();
+        // 下方九宫
+        ctx.beginPath();
+        ctx.moveTo(padding + 3 * cellW, padding + 7 * cellH);
+        ctx.lineTo(padding + 5 * cellW, padding + 9 * cellH);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(padding + 5 * cellW, padding + 7 * cellH);
+        ctx.lineTo(padding + 3 * cellW, padding + 9 * cellH);
+        ctx.stroke();
+        
+        // 绘制棋子（在交叉点上）
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 9; j++) {
+                const piece = board[i][j];
+                if (piece) {
+                    const x = padding + j * cellW;
+                    const y = padding + i * cellH;
+                    const isRed = piece[0] === 'r';
+                    const pieceRadius = Math.min(cellW, cellH) * 0.4;
+                    
+                    // 选中高亮
+                    if (selectedRow === i && selectedCol === j) {
+                        ctx.fillStyle = 'rgba(255, 255, 0, 0.6)';
+                        ctx.beginPath();
+                        ctx.arc(x, y, pieceRadius * 1.2, 0, 2 * Math.PI);
+                        ctx.fill();
+                    }
+                    
+                    // 绘制圆形背景
+                    const gradient = ctx.createRadialGradient(x - pieceRadius*0.3, y - pieceRadius*0.3, 2, x, y, pieceRadius);
+                    gradient.addColorStop(0, isRed ? '#ff6b6b' : '#888888');
+                    gradient.addColorStop(1, isRed ? '#c0392b' : '#333333');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(x, y, pieceRadius, 0, 2 * Math.PI);
+                    ctx.fill();
+                    
+                    // 绘制边框
+                    ctx.strokeStyle = '#d4af37';
+                    ctx.lineWidth = 2;
+                    ctx.stroke();
+                    
+                    // 绘制文字
+                    ctx.font = `bold ${Math.floor(pieceRadius * 1.2)}px "KaiTi", "SimSun", serif`;
+                    ctx.fillStyle = isRed ? '#fff5e0' : '#ffecb3';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.shadowColor = 'rgba(0,0,0,0.5)';
+                    ctx.shadowBlur = 2;
+                    ctx.shadowOffsetX = 1;
+                    ctx.shadowOffsetY = 1;
+                    ctx.fillText(pieces[piece], x, y + 2);
+                    ctx.shadowBlur = 0;
+                    ctx.shadowOffsetX = 0;
+                    ctx.shadowOffsetY = 0;
+                }
+            }
+        }
+    }
+    
+    // ==================== 棋子移动合法性检查（简化版） ====================
+    function isValidMove(piece, fromRow, fromCol, toRow, toCol, boardState) {
+        const targetPiece = boardState[toRow][toCol];
+        // 不能吃自己的棋子
+        if (targetPiece && targetPiece[0] === piece[0]) return false;
+        
+        const deltaRow = toRow - fromRow;
+        const deltaCol = toCol - fromCol;
+        const absDeltaRow = Math.abs(deltaRow);
+        const absDeltaCol = Math.abs(deltaCol);
+        
+        const pieceType = piece[1];
+        const isRed = piece[0] === 'r';
+        
+        // 将
+        if (pieceType === '将') {
+            const inPalace = isRed ? 
+                (toRow >= 7 && toRow <= 9 && toCol >= 3 && toCol <= 5) :
+                (toRow >= 0 && toRow <= 2 && toCol >= 3 && toCol <= 5);
+            if (!inPalace) return false;
+            if ((absDeltaRow + absDeltaCol) !== 1) return false;
+            return true;
+        }
+        
+        // 士
+        if (pieceType === '士') {
+            const inPalace = isRed ? 
+                (toRow >= 7 && toRow <= 9 && toCol >= 3 && toCol <= 5) :
+                (toRow >= 0 && toRow <= 2 && toCol >= 3 && toCol <= 5);
+            if (!inPalace) return false;
+            if (absDeltaRow !== 1 || absDeltaCol !== 1) return false;
+            return true;
+        }
+        
+        // 象
+        if (pieceType === '象') {
+            if (absDeltaRow !== 2 || absDeltaCol !== 2) return false;
+            const midRow = (fromRow + toRow) / 2;
+            const midCol = (fromCol + toCol) / 2;
+            if (boardState[midRow][midCol]) return false;
+            if (isRed && toRow < 5) return false;
+            if (!isRed && toRow > 4) return false;
+            return true;
+        }
+        
+        // 马
+        if (pieceType === '马') {
+            if (absDeltaRow === 2 && absDeltaCol === 1) {
+                const legRow = fromRow + deltaRow/2;
+                if (boardState[legRow][fromCol]) return false;
+                return true;
+            }
+            if (absDeltaRow === 1 && absDeltaCol === 2) {
+                const legCol = fromCol + deltaCol/2;
+                if (boardState[fromRow][legCol]) return false;
+                return true;
+            }
+            return false;
+        }
+        
+        // 车
+        if (pieceType === '车') {
+            if (fromRow === toRow) {
+                const step = deltaCol > 0 ? 1 : -1;
+                for (let c = fromCol + step; c !== toCol; c += step) {
+                    if (boardState[toRow][c]) return false;
+                }
+                return true;
+            }
+            if (fromCol === toCol) {
+                const step = deltaRow > 0 ? 1 : -1;
+                for (let r = fromRow + step; r !== toRow; r += step) {
+                    if (boardState[r][toCol]) return false;
+                }
+                return true;
+            }
+            return false;
+        }
+        
+        // 炮
+        if (pieceType === '炮') {
+            let cnt = 0;
+            if (fromRow === toRow) {
+                const step = deltaCol > 0 ? 1 : -1;
+                for (let c = fromCol + step; c !== toCol; c += step) {
+                    if (boardState[toRow][c]) cnt++;
+                }
+            } else if (fromCol === toCol) {
+                const step = deltaRow > 0 ? 1 : -1;
+                for (let r = fromRow + step; r !== toRow; r += step) {
+                    if (boardState[r][toCol]) cnt++;
+                }
+            } else return false;
+            
+            if (targetPiece) {
+                return cnt === 1;
+            } else {
+                return cnt === 0;
+            }
+        }
+        
+        // 兵/卒
+        if (pieceType === '兵' || pieceType === '卒') {
+            const forward = isRed ? -1 : 1;
+            const isOverRiver = isRed ? fromRow <= 4 : fromRow >= 5;
+            
+            if ((deltaRow === forward && deltaCol === 0)) return true;
+            if (isOverRiver && absDeltaRow === 0 && absDeltaCol === 1) return true;
+            return false;
+        }
+        
+        return false;
+    }
+    
+    // 查找将/帅的位置
+    function findKing(boardState, turn) {
+        const kingPiece = turn === 'r' ? 'r将' : 'b将';
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 9; j++) {
+                if (boardState[i][j] === kingPiece) {
+                    return { row: i, col: j };
+                }
+            }
+        }
+        return null;
+    }
+    
+    // 检查某方是否被将军
+    function isInCheck(boardState, turn) {
+        const kingPos = findKing(boardState, turn);
+        if (!kingPos) return false;
+        
+        const opponent = turn === 'r' ? 'b' : 'r';
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 9; j++) {
+                const piece = boardState[i][j];
+                if (piece && piece[0] === opponent) {
+                    if (isValidMove(piece, i, j, kingPos.row, kingPos.col, boardState)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+    
+    // 检查将帅是否会面（白脸将）- 违规，应立即判负
+    function isKingsFacing(boardState) {
+        const redKing = findKing(boardState, 'r');
+        const blackKing = findKing(boardState, 'b');
+        if (!redKing || !blackKing) return false;
+        
+        // 检查是否在同一列
+        if (redKing.col !== blackKing.col) return false;
+        
+        // 检查中间是否有棋子
+        const minRow = Math.min(redKing.row, blackKing.row);
+        const maxRow = Math.max(redKing.row, blackKing.row);
+        for (let i = minRow + 1; i < maxRow; i++) {
+            if (boardState[i][redKing.col]) return false;
+        }
+        
+        // 将帅会面，违规
+        return true;
+    }
+    
+    // 检查是否被将死（被将军且无法解除）
+    function isCheckmated(boardState, turn) {
+        // 如果没有合法移动，可能是将死或逼和
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 9; j++) {
+                const piece = boardState[i][j];
+                if (piece && piece[0] === turn) {
+                    for (let ti = 0; ti < 10; ti++) {
+                        for (let tj = 0; tj < 9; tj++) {
+                            if (isValidMove(piece, i, j, ti, tj, boardState)) {
+                                // 模拟移动，检查是否解除将军
+                                const savedTarget = boardState[ti][tj];
+                                boardState[ti][tj] = piece;
+                                boardState[i][j] = '';
+                                
+                                const stillInCheck = isInCheck(boardState, turn);
+                                
+                                // 恢复
+                                boardState[i][j] = piece;
+                                boardState[ti][tj] = savedTarget;
+                                
+                                if (!stillInCheck) {
+                                    return false; // 有办法解除将军
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // 有合法移动但都被将军，或者没有合法移动且被将军
+        return isInCheck(boardState, turn);
+    }
+    
+    // ==================== DeepSeek AI调用 ====================
+    function boardToFEN() {
+        // 简化FEN生成，只返回局面字符串
+        let fen = '';
+        for (let i = 0; i < 10; i++) {
+            let empty = 0;
+            for (let j = 0; j < 9; j++) {
+                const piece = board[i][j];
+                if (!piece) {
+                    empty++;
+                } else {
+                    if (empty > 0) {
+                        fen += empty;
+                        empty = 0;
+                    }
+                    let code = '';
+                    switch(piece[1]) {
+                        case '车': code = piece[0] === 'r' ? 'R' : 'r'; break;
+                        case '马': code = piece[0] === 'r' ? 'N' : 'n'; break;
+                        case '象': code = piece[0] === 'r' ? 'E' : 'e'; break;
+                        case '士': code = piece[0] === 'r' ? 'A' : 'a'; break;
+                        case '将': code = piece[0] === 'r' ? 'K' : 'k'; break;
+                        case '炮': code = piece[0] === 'r' ? 'C' : 'c'; break;
+                        case '兵': code = piece[0] === 'r' ? 'P' : 'p'; break;
+                        case '卒': code = piece[0] === 'r' ? 'P' : 'p'; break;
+                        default: code = '';
+                    }
+                    fen += code;
+                }
+            }
+            if (empty > 0) fen += empty;
+            if (i < 9) fen += '/';
+        }
+        return fen;
+    }
+    
+    async function getAIMoveFromDeepSeek() {
+        const remainingSteps = 50 - aiStepCount;
+        const fen = boardToFEN();
+        
+        const prompt = `你是象棋大师，现在分析当前局面并选择最佳走法。
+
+当前局面FEN: ${fen}
+你已走${aiStepCount}步，剩余${remainingSteps}步必须取胜。
+
+【棋盘坐标系统】
+- 格式: 起始行,起始列-目标行,目标列
+- 行0-9(0黑底线,9红底线)，列0-8(左到右)
+- 你是黑方，棋子代号以小写字母开头
+
+【关键棋子位置】
+黑方: 将(0,4) 车(0,0)(0,8) 马(0,1)(0,7) 象(0,2)(0,6) 士(0,3)(0,5) 炮(2,1)(2,7) 卒(3,0)(3,2)(3,4)(3,6)(3,8)
+
+【走法优先级】
+1. 绝杀机会: 能一步将死对方的走法（最高优先级）
+2. 将军: 能直接将军的走法（高优先级）
+3. 吃子: 吃掉对方大子（车>马/炮>兵）
+4. 进攻: 威胁对方将/帅，或形成攻势
+5. 防守: 保护被威胁的棋子，特别是将
+6. 发展: 出动车马炮到活跃位置
+
+【重要规则】
+- 不能送将（让己方将暴露在被将军位置）
+- 避免将帅在同一列且无遮挡（白脸将违规）
+- 50步内必须取胜
+
+${remainingSteps <= 10 ? '【紧急】剩余步数极少，必须每步都将军或绝杀！' : ''}
+
+请只返回最佳走法坐标，格式"行,列-行,列"，如"0,1-2,2"。只返回坐标，不要解释。`;
+        
+        try {
+            const response = await fetch(DEEPSEEK_CONFIG.url, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                    "Authorization": `Bearer ${DEEPSEEK_CONFIG.apiKey}`
+                },
+                body: JSON.stringify({
+                    model: DEEPSEEK_CONFIG.model,
+                    messages: [
+                        {role: "system", content: "你是象棋大师，能在指定步数内取胜。"},
+                        {role: "user", content: prompt}
+                    ],
+                    temperature: 0.3,
+                    max_tokens: 50
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`API错误: ${response.status}`);
+            }
+            
+            const data = await response.json();
+            const move = data.choices[0].message.content.trim();
+            console.log("DeepSeek推荐:", move);
+            return move;
+        } catch (error) {
+            console.error("DeepSeek调用失败:", error);
+            return null;
+        }
+    }
+    
+    // 将坐标格式转换为移动（如"0,1-2,2" -> {from: [0,1], to: [2,2]}）
+    function parseMove(moveStr, boardState) {
+        console.log("AI推荐:", moveStr);
+        
+        // 清理字符串
+        const cleanStr = moveStr.trim().replace(/["']/g, '');
+        
+        // 匹配坐标格式: 行,列-行,列
+        const match = cleanStr.match(/(\d+),(\d+)-(\d+),(\d+)/);
+        if (!match) {
+            console.log("无法解析走法格式");
+            return null;
+        }
+        
+        const fromRow = parseInt(match[1]);
+        const fromCol = parseInt(match[2]);
+        const toRow = parseInt(match[3]);
+        const toCol = parseInt(match[4]);
+        
+        // 验证坐标范围
+        if (fromRow < 0 || fromRow > 9 || fromCol < 0 || fromCol > 8 ||
+            toRow < 0 || toRow > 9 || toCol < 0 || toCol > 8) {
+            console.log("坐标超出范围");
+            return null;
+        }
+        
+        // 验证起始位置有黑方棋子
+        const piece = boardState[fromRow][fromCol];
+        if (!piece || piece[0] !== 'b') {
+            console.log("起始位置没有黑方棋子:", fromRow, fromCol);
+            return null;
+        }
+        
+        // 验证走法合法
+        if (!isValidMove(piece, fromRow, fromCol, toRow, toCol, boardState)) {
+            console.log("走法不合法");
+            return null;
+        }
+        
+        // 验证不送将
+        const savedTarget = boardState[toRow][toCol];
+        boardState[toRow][toCol] = piece;
+        boardState[fromRow][fromCol] = '';
+        const selfInCheck = isInCheck(boardState, 'b');
+        boardState[fromRow][fromCol] = piece;
+        boardState[toRow][toCol] = savedTarget;
+        
+        if (selfInCheck) {
+            console.log("AI想送将，拒绝");
+            return null;
+        }
+        
+        return { from: [fromRow, fromCol], to: [toRow, toCol] };
+    }
+    
+    // 备用AI：带简单评分的走法选择（避免送将）
+    function getRandomValidMove() {
+        let moves = [];
+        const pieceValue = { '将': 100, '车': 9, '马': 4, '象': 2, '士': 2, '炮': 4, '卒': 1 };
+        
+        for (let i = 0; i < 10; i++) {
+            for (let j = 0; j < 9; j++) {
+                const piece = board[i][j];
+                if (piece && piece[0] === 'b') {
+                    for (let ti = 0; ti < 10; ti++) {
+                        for (let tj = 0; tj < 9; tj++) {
+                            if (isValidMove(piece, i, j, ti, tj, board)) {
+                                // 模拟移动
+                                const savedTarget = board[ti][tj];
+                                board[ti][tj] = piece;
+                                board[i][j] = '';
+                                
+                                const selfInCheck = isInCheck(board, 'b');
+                                let score = 0;
+                                
+                                if (!selfInCheck) {
+                                    // 吃子得分
+                                    if (savedTarget) {
+                                        const targetType = savedTarget[1];
+                                        score += (pieceValue[targetType] || 1) * 10;
+                                    }
+                                    
+                                    // 将军得分
+                                    if (isInCheck(board, 'r')) {
+                                        score += 50;
+                                    }
+                                    
+                                    // 前进得分（鼓励过河进攻）
+                                    if (piece[1] === '卒' && ti > i) {
+                                        score += 2;
+                                    }
+                                    
+                                    // 车炮位置分（控制中路）
+                                    if ((piece[1] === '车' || piece[1] === '炮') && tj === 4) {
+                                        score += 3;
+                                    }
+                                    
+                                    moves.push({from: [i, j], to: [ti, tj], score: score});
+                                }
+                                
+                                // 恢复
+                                board[i][j] = piece;
+                                board[ti][tj] = savedTarget;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        
+        if (moves.length === 0) return null;
+        
+        // 按分数排序，优先选高分走法，但保留一定随机性
+        moves.sort((a, b) => b.score - a.score);
+        
+        // 如果有高分走法(吃子或将军)，优先选择
+        const goodMoves = moves.filter(m => m.score >= 20);
+        if (goodMoves.length > 0) {
+            return goodMoves[Math.floor(Math.random() * goodMoves.length)];
+        }
+        
+        // 否则从前50%走法中随机选
+        const topHalf = moves.slice(0, Math.ceil(moves.length / 2));
+        return topHalf[Math.floor(Math.random() * topHalf.length)];
+    }
+    
+    async function aiMove() {
+        if (gameOver) return;
+        if (currentTurn !== 'b') return;
+        
+        if (aiStepCount >= 50) {
+            gameOver = true;
+            winner = 'r';
+            document.getElementById("status").innerHTML = "❌ AI未能在50步内取胜，<span style='color:green'>你赢了！</span>";
+            drawBoard();
+            return;
+        }
+        
+        document.getElementById("status").innerHTML = "🤖 AI思考中 <span class='loading'></span>";
+        
+        // 调用DeepSeek获取推荐走法
+        const moveStr = await getAIMoveFromDeepSeek();
+        
+        // 尝试解析DeepSeek推荐的走法
+        let move = null;
+        let usedAI = false;
+        if (moveStr) {
+            move = parseMove(moveStr, board);
+            if (move) usedAI = true;
+        }
+        
+        // 如果解析失败，使用随机合法走法作为后备
+        if (!move) {
+            if (!moveStr) {
+                console.log("DeepSeek API调用失败或返回空，使用随机走法");
+            } else {
+                console.log("DeepSeek走法解析失败或非法，使用随机走法");
+            }
+            move = getRandomValidMove();
+        }
+        
+        // 更新状态显示AI类型
+        const aiType = usedAI ? "🧠 AI" : "🎲 随机";
+        
+        if (move) {
+            const [fromRow, fromCol] = move.from;
+            const [toRow, toCol] = move.to;
+            const piece = board[fromRow][fromCol];
+            
+            // 执行移动
+            board[toRow][toCol] = piece;
+            board[fromRow][fromCol] = '';
+            aiStepCount++;
+            
+            document.getElementById("stepCount").innerText = aiStepCount;
+            drawBoard();
+            
+            // 检查将帅会面（白脸将）- AI输
+            if (isKingsFacing(board)) {
+                gameOver = true;
+                winner = 'r';
+                document.getElementById("status").innerHTML = "✅ AI将帅会面违规，你赢了！";
+                drawBoard();
+                return;
+            }
+            
+            // 检查玩家是否被将死
+            if (isCheckmated(board, 'r')) {
+                if (aiStepCount <= 50) {
+                    gameOver = true;
+                    winner = 'b';
+                    document.getElementById("status").innerHTML = `🎉 AI在${aiStepCount}步内将死你，AI赢了！`;
+                } else {
+                    gameOver = true;
+                    winner = 'r';
+                    document.getElementById("status").innerHTML = "❌ AI超过50步才赢，你赢了！";
+                }
+                drawBoard();
+                return;
+            }
+            
+            // 检查是否形成将军
+            const opponentInCheck = isInCheck(board, 'r');
+            
+            currentTurn = 'r';
+            if (opponentInCheck) {
+                document.getElementById("status").innerHTML = `${aiType}将军！请应将`;
+            } else {
+                document.getElementById("status").innerHTML = `🎯 轮到你了（红方）${usedAI ? '' : '<small>(AI未配置)</small>'}`;
+            }
+        } else {
+            document.getElementById("status").innerHTML = "⚠️ AI无步可走，你赢了！";
+            gameOver = true;
+            winner = 'r';
+        }
+    }
+    
+    // ==================== 玩家移动 ====================
+    function handleCanvasClick(e) {
+        if (gameOver) return;
+        if (currentTurn !== 'r') return;
+        
+        const rect = canvas.getBoundingClientRect();
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        
+        const mouseX = (e.clientX - rect.left) * scaleX;
+        const mouseY = (e.clientY - rect.top) * scaleY;
+        
+        // 使用与绘制时相同的边距和单元格大小
+        const padding = 24;
+        const boardWidth = canvas.width - 2 * padding;
+        const boardHeight = canvas.height - 2 * padding;
+        const cellW = boardWidth / 8;
+        const cellH = boardHeight / 9;
+        
+        // 计算最近的交叉点
+        const col = Math.round((mouseX - padding) / cellW);
+        const row = Math.round((mouseY - padding) / cellH);
+        
+        // 检查是否在有效范围内
+        if (row < 0 || row >= 10 || col < 0 || col >= 9) return;
+        
+        // 检查点击位置是否靠近交叉点（允许一定误差）
+        const crossX = padding + col * cellW;
+        const crossY = padding + row * cellH;
+        const dist = Math.sqrt(Math.pow(mouseX - crossX, 2) + Math.pow(mouseY - crossY, 2));
+        const maxDist = Math.min(cellW, cellH) * 0.5;
+        if (dist > maxDist) return;
+        
+        if (selectedRow === null) {
+            const piece = board[row][col];
+            if (piece && piece[0] === 'r') {
+                selectedRow = row;
+                selectedCol = col;
+                drawBoard();
+            }
+        } else {
+            const piece = board[selectedRow][selectedCol];
+            if (isValidMove(piece, selectedRow, selectedCol, row, col, board)) {
+                // 模拟移动，检查是否送将
+                const savedTarget = board[row][col];
+                board[row][col] = piece;
+                board[selectedRow][selectedCol] = '';
+                
+                const selfInCheck = isInCheck(board, 'r');
+                
+                if (selfInCheck) {
+                    // 恢复，不允许送将
+                    board[selectedRow][selectedCol] = piece;
+                    board[row][col] = savedTarget;
+                    document.getElementById("status").innerHTML = "⚠️ 不能送将！请重新选择";
+                    selectedRow = null;
+                    selectedCol = null;
+                    drawBoard();
+                    return;
+                }
+                
+                selectedRow = null;
+                selectedCol = null;
+                drawBoard();
+                
+                // 检查将帅会面（白脸将）- 玩家输
+                if (isKingsFacing(board)) {
+                    gameOver = true;
+                    winner = 'b';
+                    document.getElementById("status").innerHTML = "❌ 将帅会面违规，你输了！";
+                    drawBoard();
+                    return;
+                }
+                
+                // 检查AI是否被将死
+                if (isCheckmated(board, 'b')) {
+                    gameOver = true;
+                    winner = 'r';
+                    document.getElementById("status").innerHTML = "🎉 你将死了AI，你赢了！";
+                    drawBoard();
+                    return;
+                }
+                
+                // 检查是否形成将军
+                const opponentInCheck = isInCheck(board, 'b');
+                
+                currentTurn = 'b';
+                if (opponentInCheck) {
+                    document.getElementById("status").innerHTML = "🔥 将军！AI思考中...";
+                } else {
+                    document.getElementById("status").innerHTML = "🤖 AI思考中...";
+                }
+                setTimeout(() => aiMove(), 100);
+            } else {
+                selectedRow = null;
+                selectedCol = null;
+                drawBoard();
+            }
+        }
+    }
+    
+    function resetGame() {
+        initBoard();
+        currentTurn = 'r';
+        aiStepCount = 0;
+        gameOver = false;
+        winner = null;
+        selectedRow = null;
+        selectedCol = null;
+        document.getElementById("stepCount").innerText = "0";
+        document.getElementById("status").innerHTML = "🎯 游戏开始，红方先走";
+        drawBoard();
+    }
+    
+    // ==================== 事件绑定和启动 ====================
+    canvas.addEventListener('click', handleCanvasClick);
+    initBoard();
+    drawBoard();
+</script>
+</body>
+</html>
